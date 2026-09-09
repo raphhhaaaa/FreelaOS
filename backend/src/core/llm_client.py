@@ -14,9 +14,9 @@ NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY") ## roteamento de modelos gratuitos 
 # CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY") # Placeholder para futura implementação nativa
 
 _gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
-_groq_client = OpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1") if GROQ_API_KEY else None
-_openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
-_nvidia_client = OpenAI(api_key=NVIDIA_API_KEY, base_url="https://integrate.api.nvidia.com/v1") if NVIDIA_API_KEY else None
+_groq_client = OpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1", timeout=25.0) if GROQ_API_KEY else None
+_openai_client = OpenAI(api_key=OPENAI_API_KEY, timeout=25.0) if OPENAI_API_KEY else None
+_nvidia_client = OpenAI(api_key=NVIDIA_API_KEY, base_url="https://integrate.api.nvidia.com/v1", timeout=25.0) if NVIDIA_API_KEY else None
 
 def _call_provider(prompt: str, provedor: str, force_json: bool = False) -> str:
     """Função interna para chamar o provedor específico."""
@@ -106,7 +106,7 @@ def generate_text(prompt: str, provedor: str = "gemini-lite", max_retries: int =
             return _call_provider(prompt, provedor, force_json=False)
         except Exception as api_err:
             if attempt < max_retries - 1:
-                wait_time = 15 * (attempt + 1)
+                wait_time = 5 * (attempt + 1)
                 logger.warning(f"[LLM RETRY] Provedor {provedor} falhou ({api_err}). Tentando novamente em {wait_time}s...")
                 time.sleep(wait_time)
             else:
@@ -131,7 +131,7 @@ def generate_json(prompt: str, provedor: str = "gemini-lite", max_retries: int =
             break
         except Exception as api_err:
             if attempt < max_retries - 1:
-                wait_time = 15 * (attempt + 1)
+                wait_time = 5 * (attempt + 1)
                 logger.warning(f"[LLM RETRY] Provedor {provedor} falhou ({api_err}). Tentando novamente em {wait_time}s...")
                 time.sleep(wait_time)
             else:

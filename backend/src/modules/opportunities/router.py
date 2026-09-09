@@ -13,8 +13,6 @@ router = APIRouter()
 @router.post("/api/analista/evaluate")
 def avaliar_oportunidade(req: AvaliacaoRequest, current_user: dict = Depends(get_current_user)):
     try:
-        if hasattr(req, 'user_id') and getattr(req, 'user_id') != current_user['user_id']:
-            raise HTTPException(status_code=403, detail="Acesso negado")
         if hasattr(req, 'perfil_id') and getattr(req, 'perfil_id') != current_user['user_id']:
             raise HTTPException(status_code=403, detail="Acesso negado")
         resultado = AnalistaService.avaliar_oportunidade(req.vaga_id, req.user_id)
@@ -27,8 +25,6 @@ def avaliar_oportunidade(req: AvaliacaoRequest, current_user: dict = Depends(get
 @router.post("/api/redator/draft")
 def gerar_proposta(req: RedatorRequest, current_user: dict = Depends(get_current_user)):
     try:
-        if hasattr(req, 'user_id') and getattr(req, 'user_id') != current_user['user_id']:
-            raise HTTPException(status_code=403, detail="Acesso negado")
         if hasattr(req, 'perfil_id') and getattr(req, 'perfil_id') != current_user['user_id']:
             raise HTTPException(status_code=403, detail="Acesso negado")
         resultado = RedatorService.gerar_proposta(req.vaga_id, req.user_id)
