@@ -48,6 +48,17 @@ def _call_provider(prompt: str, provedor: str, force_json: bool = False) -> str:
             max_tokens=4096
         )
         return res.choices[0].message.content
+
+    elif provedor == "openrouter":
+        openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+        if not openrouter_api_key: raise ValueError("OPENROUTER_API_KEY não configurada no ambiente.")
+        openrouter_client = OpenAI(api_key=openrouter_api_key, base_url="https://openrouter.ai/api/v1", timeout=25.0)
+        res = openrouter_client.chat.completions.create(
+            model="dots-studio/dots-3-note-preview:free",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"} if force_json else None
+        )
+        return res.choices[0].message.content
     elif provedor == "gemini-lite":
         if not _gemini_client: raise ValueError("GEMINI_API_KEY não configurada no ambiente.")
         config = {'response_mime_type': 'application/json'} if force_json else None
@@ -156,6 +167,7 @@ def generate_json(prompt: str, provedor: str = "gemini-lite", max_retries: int =
         # Usa json_repair para consertar má formatação agressiva (como strings multilinhas, aspas soltas, vírgulas faltando)
         obj = json_repair.repair_json(clean_json, return_objects=True)
         if obj:
+            logger.info(f"[LLM JSON] Utilizado provedor: {provedor}")
             return obj
         raise ValueError("O JSON retornado estava completamente destruído e não pôde ser salvo.")
     except Exception as e:

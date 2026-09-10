@@ -138,13 +138,13 @@ Orçamento: R$ {vaga.get('orcamento')}
 8. Não esqueça de incluir quebras de linha entre parágrafos.
 9. RETORNE UM JSON VÁLIDO COM A SEGUINTE ESTRUTURA (EXEMPLO) E NADA MAIS (sem formatação markdown ```json):
 {{
-  "texto_proposta": "Olá 'nome do cliente'! Tudo bem? (quebra de linha) Me chamo ´primeiro nome do desenvolvedor´, sou desenvolvedor... [...] -Termine o texto com:- Atenciosamente, ´primeiro nome do desenvolvedor´",
+  "texto_proposta": "Olá 'nome do cliente'! Tudo bem? (quebra de linha) Me chamo `APENAS O PRIMEIRO nome do desenvolvedor´, sou desenvolvedor... [...] -Termine o texto com:- Atenciosamente, APENAS O PRIMEIRO nome do desenvolvedor´",
   "valor": 1500,
   "prazo": "7 dias"
 }}
 """
         active_llm = _get_active_llm(user_id)                   ## para o redator modelos especificios se mostraram mais eficientes - TESTES SENDO REALIZADOS
-        dados_ia = generate_json(sys_prompt, provedor="nvidia", force_json=True)
+        dados_ia = generate_json(sys_prompt, provedor="openrouter", force_json=True)
         
         texto_proposta = dados_ia.get("texto_proposta", "") 
         valor_proposta = dados_ia.get("valor", 0)

@@ -29,6 +29,8 @@ const columns: { id: KanbanColumn; title: string; accent: string }[] = [
 function ProjetosPage() {
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<any[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const { mutateAsync: deleteOportunidade } = useDeleteOportunidade();
 
   useEffect(() => {
@@ -90,6 +92,12 @@ function ProjetosPage() {
     fetchProjects();
   }, []);
 
+  const onDragStart = (start: any) => {
+    if (selectedIds.length > 0 && !selectedIds.includes(start.draggableId)) {
+      setSelectedIds([]);
+    }
+  };
+
   const handleDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
 
@@ -100,20 +108,30 @@ function ProjetosPage() {
     // Regra: Do backlog só é permitido arrastar para a zona "ignorar"
     if (source.droppableId === "backlog" && destination.droppableId !== "ignorar") return;
 
+    const isDraggingMultiple = selectedIds.length > 1 && selectedIds.includes(draggableId);
+    const idsToProcess = isDraggingMultiple ? selectedIds : [draggableId];
+
     // Caso de arrastar para a zona "Ignorar"
     if (destination.droppableId === "ignorar") {
-      const project = projects.find(p => p.id === draggableId);
-      if (!project) return;
+      const projectsToRestore = projects.filter(p => idsToProcess.includes(p.id));
 
       // Remove otimisticamente
-      setProjects(prev => prev.filter(p => p.id !== draggableId));
+      setProjects(prev => prev.filter(p => !idsToProcess.includes(p.id)));
+      setSelectedIds([]);
 
       try {
-        await deleteOportunidade(draggableId);
+        await Promise.all(idsToProcess.map(id => deleteOportunidade(id)));
+        toast.success(idsToProcess.length > 1 ? `${idsToProcess.length} vagas ignoradas.` : "Vaga ignorada.");
       } catch (e: any) {
-        toast.error("Erro ao ignorar oportunidade.");
-        setProjects(prev => [...prev, project]);
+        toast.error("Erro ao ignorar oportunidade(s).");
+        setProjects(prev => [...prev, ...projectsToRestore]);
       }
+      return;
+    }
+
+    if (isDraggingMultiple) {
+      toast.warning("A movimentação em lote é permitida apenas para a lixeira.");
+      setSelectedIds([]);
       return;
     }
 
@@ -156,7 +174,7 @@ function ProjetosPage() {
           <span>Carregando projetos...</span>
         </div>
       ) : (
-        <DragDropContext onDragEnd={handleDragEnd}>
+        <DragDropContext onDragStart={onDragStart} onDragEnd={handleDragEnd}>
           <div className="flex w-full items-start gap-4">
             {/* Barra lateral de descarte / Ignorar Vaga */}
             <Droppable droppableId="ignorar">
@@ -222,10 +240,45 @@ function ProjetosPage() {
                                     opacity: snapshot.isDragging ? 0.8 : 1,
                                   }}
                                 >
-                                  <Link to="/oportunidades/$id" params={{ id: p.id }} className="block">
+                                  <Link 
+                                    to="/oportunidades/$id" 
+                                    params={{ id: p.id }} 
+                                    className="block relative"
+                                    onClick={(e) => {
+                                      if (e.shiftKey && lastSelectedId) {
+                                        e.preventDefault();
+                                        const currentProject = projects.find(proj => proj.id === p.id);
+                                        const lastProject = projects.find(proj => proj.id === lastSelectedId);
+                                        if (currentProject && lastProject && currentProject.columnId === lastProject.columnId) {
+                                          const columnItems = projects.filter(proj => proj.columnId === currentProject.columnId);
+                                          const currentIndex = columnItems.findIndex(proj => proj.id === p.id);
+                                          const lastIndex = columnItems.findIndex(proj => proj.id === lastSelectedId);
+                                          const start = Math.min(currentIndex, lastIndex);
+                                          const end = Math.max(currentIndex, lastIndex);
+                                          const idsToSelect = columnItems.slice(start, end + 1).map(proj => proj.id);
+                                          
+                                          setSelectedIds(prev => {
+                                            const newSet = new Set([...prev, ...idsToSelect]);
+                                            return Array.from(newSet);
+                                          });
+                                        }
+                                      } else if (e.ctrlKey || e.metaKey) {
+                                        e.preventDefault();
+                                        setSelectedIds(prev =>
+                                          prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]
+                                        );
+                                        setLastSelectedId(p.id);
+                                      }
+                                    }}
+                                  >
                                     <Card
-                                      className={`cursor-pointer border-border/60 bg-background/60 p-3 transition hover:border-primary/40 hover:bg-muted/30 ${snapshot.isDragging ? 'shadow-lg border-primary/50' : ''}`}
+                                      className={`cursor-pointer border-border/60 bg-background/60 p-3 transition hover:border-primary/40 hover:bg-muted/30 ${snapshot.isDragging ? 'shadow-lg border-primary/50 relative z-50' : ''} ${selectedIds.includes(p.id) ? 'ring-2 ring-primary/80 bg-primary/5' : ''}`}
                                     >
+                                      {snapshot.isDragging && selectedIds.includes(p.id) && selectedIds.length > 1 && (
+                                        <div className="absolute -top-3 -right-3 flex h-6 items-center justify-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground shadow-sm animate-in zoom-in duration-200">
+                                          {selectedIds.length} selecionados
+                                        </div>
+                                      )}
                                       <p className="text-xs text-muted-foreground">{p.client}</p>
                                       <p className="mt-0.5 text-sm font-medium leading-snug">{p.title}</p>
                                       {p.stack && p.stack.length > 0 && (
